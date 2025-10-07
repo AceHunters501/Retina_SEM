@@ -61,6 +61,17 @@ def save_grid(pairs, out_path, pad=8, bg=255):
     cv2.imwrite(str(out_path), canvas)
 
 def main(split="train", k=8, preproc_root="preprocessed", thresh=THRESH):
+    """
+    Sample random subset of images from preprocessed/<split>,
+    overlay FOV masks, compute center offsets, and save
+    visual + text reports highlighting off-center masks.
+
+    Parameters:
+        split (str): dataset split ("train", "val", "test")
+        k (int): number of random samples to visualize
+        preproc_root (str): root of preprocessed directory
+        thresh (float): deviation threshold for flagging outliers
+    """
     img_dir = Path(preproc_root) / split / "images"
     fov_dir = Path(preproc_root) / split / "fov_masks"
     out_dir = Path("debug") / "fov_overlays" / split
