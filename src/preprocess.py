@@ -7,7 +7,7 @@ Preprocess FIVES fundus images:
 - CLAHE (local contrast)
 - Optional resize
 - FOV mask from processed image (robust circle-from-background approach)
-- Train -> (train,val) split created ONLY under preprocessed/
+- Train --> (train,val) split created ONLY under preprocessed/
 - Test stays intact (no split)
 
 Run from project root:
