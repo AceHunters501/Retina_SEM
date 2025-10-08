@@ -12,7 +12,7 @@ def compute_offset(img_gray, mask_u8):
     m = (mask_u8 > 0).astype(np.uint8)
     M = cv2.moments(m)
     if M["m00"] == 0:
-        # empty mask (It shouldn't happen), we should treat as centered
+        # empty mask (It should not happen), we should treat as centered
         return 0.0, 0.0, w / 2.0, h / 2.0
     cx = M["m10"] / M["m00"]
     cy = M["m01"] / M["m00"]
