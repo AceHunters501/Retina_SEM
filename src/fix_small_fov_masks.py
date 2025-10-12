@@ -2,13 +2,13 @@
 from pathlib import Path
 import cv2, numpy as np, math
 
-SPLITS = ["train", "test"]     # which splits to patch
+SPLITS = ["train", "test"]     # Splitting into patches
 PREPROC_ROOT = Path("preprocessed")
-THRESH_SMALL = 0.55            # patch masks below this area ratio
-TARGET = 0.70                  # aim here
-TOL = 0.05                     # ± tolerance
-SHRINK_PX = 4                  # keep same edge shrink as before
-R_BOUNDS = (0.31, 0.54)        # allow a bit wider than before to catch tough cases
+THRESH_SMALL = 0.55            # Patching  masks below this area ratio
+TARGET = 0.70                  # This is the aim
+TOL = 0.05                     # ± tolerance for balance
+SHRINK_PX = 4                  # keeping same edge shrinkage as earlier
+R_BOUNDS = (0.31, 0.54)        # In order to catch tough/extreme cases, allowing  bit wider than before
 
 def solid_circle_mask(h, w, cx, cy, r, shrink_px=0):
     Y, X = np.ogrid[:h, :w]
