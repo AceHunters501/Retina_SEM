@@ -1,23 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-# Final graph-cut (or fallback) segmentation over the *preprocessed* dataset.
-# Assumes you have already run preprocess.py so that you have:
-# preprocessed/
-#   train/{images,fov_masks}
-#   val/{images,fov_masks}
-#   test/{images,fov_masks}
-#
-# Outputs under: outputs_seg/
-#   <split>/masks/*.png            (binary vessel mask)
-#   <split>/overlays/*.png         (result overlay on grayscale)
-#   <split>/seed_vis/*.png         (red=FG seeds, green=BG seeds)
-#   <split>/debug_boundaries/*.png (SLIC boundaries preview)
-#   summary_<timestamp>.csv
-#
-# Seeds: FG = top vesselness percentile; BG = low vesselness + FOV ring.
-# Graph cut: uses PyMaxflow if installed; else percentile threshold fallback.
-
 import argparse
 import csv
 import math
@@ -29,7 +9,6 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 
-# Optional imports (handled lazily)
 _have_skimage = True
 _have_maxflow = True
 try:
@@ -40,12 +19,11 @@ except Exception:
     _have_skimage = False
 
 try:
-    import maxflow  # PyMaxflow
+    import maxflow 
 except Exception:
     _have_maxflow = False
 
 
-# -------------------- IO utils --------------------
 def ensure_dir(p: Path):
     p.mkdir(parents=True, exist_ok=True)
 
@@ -61,7 +39,6 @@ def save_png(path: Path, img):
     cv2.imwrite(str(path), img)
 
 
-# -------------------- Image helpers --------------------
 def normalize_u8(img):
     """Map to uint8 [0,255]."""
     if img.dtype == np.uint8:
@@ -74,7 +51,6 @@ def normalize_u8(img):
 
 
 def overlay_mask(gray_u8, mask_u8, alpha=0.35):
-    """Overlay binary mask in red on gray; also draw centers for quick QA."""
     rgb = cv2.cvtColor(gray_u8, cv2.COLOR_GRAY2BGR)
     red = np.zeros_like(rgb); red[..., 2] = 255
     m = (mask_u8 > 0)[..., None]
@@ -85,26 +61,22 @@ def overlay_mask(gray_u8, mask_u8, alpha=0.35):
     M = cv2.moments((mask_u8 > 0).astype(np.uint8))
     if M["m00"] != 0:
         cx = int(M["m10"] / M["m00"]) ; cy = int(M["m01"] / M["m00"])
-        cv2.circle(out, (w // 2, h // 2), 5, (0, 255, 0), -1)  # image center
-        cv2.circle(out, (cx, cy), 5, (255, 0, 0), -1)          # mask centroid
+        cv2.circle(out, (w // 2, h // 2), 5, (0, 255, 0), -1)  
+        cv2.circle(out, (cx, cy), 5, (255, 0, 0), -1)          
     return out
 
 
 def draw_seed_vis(gray_u8, fg_seed, bg_seed):
-    """Visualize seeds: red=FG, green=BG."""
     rgb = cv2.cvtColor(gray_u8, cv2.COLOR_GRAY2BGR)
     rg = rgb.copy()
     rg[fg_seed > 0] = (0, 0, 255)
     rg[bg_seed > 0] = (0, 255, 0)
-    # blend with gray for context
     out = cv2.addWeighted(rgb, 0.6, rg, 0.4, 0)
     return out
 
 
-# -------------------- Vesselness + SLIC --------------------
 def compute_vesselness(gray_u8, fov_u8, frangi_beta=0.5, frangi_gamma=15.0):
     if not _have_skimage:
-        # Fallback: simple DoG-like enhancement
         g = gray_u8.astype(np.float32) / 255.0
         blur1 = cv2.GaussianBlur(g, (0, 0), 1.0)
         blur2 = cv2.GaussianBlur(g, (0, 0), 2.5)
@@ -123,7 +95,6 @@ def compute_vesselness(gray_u8, fov_u8, frangi_beta=0.5, frangi_gamma=15.0):
 
 def build_superpixels(gray_u8, n_segments=1200, compactness=0.1, sigma=0):
     if not _have_skimage:
-        # Crude fallback: each pixel is its own "superpixel"
         labels = np.arange(gray_u8.size, dtype=np.int32).reshape(gray_u8.shape)
         return labels, 1 + labels.max()
 
@@ -135,10 +106,8 @@ def build_superpixels(gray_u8, n_segments=1200, compactness=0.1, sigma=0):
 
 
 def adjacency_from_labels(labels):
-    """Return adjacency list of superpixels from 4-neighborhood boundaries."""
     h, w = labels.shape
     adj = [set() for _ in range(labels.max() + 1)]
-    # right/left neighbors
     L = labels[:, :-1]
     R = labels[:, 1:]
     m = L != R
@@ -146,7 +115,6 @@ def adjacency_from_labels(labels):
     for u, v in zip(a, b):
         adj[u].add(int(v)); adj[v].add(int(u))
 
-    # up/down neighbors
     U = labels[:-1, :]
     D = labels[1:, :]
     m = U != D
@@ -157,26 +125,18 @@ def adjacency_from_labels(labels):
     return [sorted(list(s)) for s in adj]
 
 
-# -------------------- Seed selection --------------------
 def select_seeds(vn, fov_u8, labels, fg_top_pct=0.15, bg_low_pct=0.15, ring_px=8):
-    """
-    FG seeds: top vesselness percentile within FOV.
-    BG seeds: low vesselness + a narrow ring near FOV boundary.
-    Returns uint8 masks.
-    """
     in_fov = (fov_u8 > 0)
     vn_f = vn[in_fov]
     if vn_f.size == 0:
         return np.zeros_like(fov_u8), np.zeros_like(fov_u8)
 
-    # Percentile thresholds
     hi = np.percentile(vn_f, 100 * (1 - fg_top_pct))
     lo = np.percentile(vn_f, 100 * (bg_low_pct))
 
     fg = ((vn >= hi) & in_fov).astype(np.uint8) * 255
     bg = ((vn <= lo) & in_fov).astype(np.uint8) * 255
 
-    # Add a ring near FOV boundary to background seeds
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * ring_px + 1, 2 * ring_px + 1))
     inner = cv2.erode((fov_u8 > 0).astype(np.uint8) * 255, k, iterations=1)
     ring = cv2.subtract((fov_u8 > 0).astype(np.uint8) * 255, inner)
@@ -185,16 +145,10 @@ def select_seeds(vn, fov_u8, labels, fg_top_pct=0.15, bg_low_pct=0.15, ring_px=8
     return fg, bg
 
 
-# -------------------- Graph cut on superpixels --------------------
 def graph_cut_segment(gray_u8, vn, labels, adj, fg_seed, bg_seed, lam_unary=5.0, beta_pair=20.0):
-    """
-    Graph cut on superpixels with unary costs from vesselness and pairwise from boundary contrast.
-    Returns binary mask (uint8 0/255).
-    """
     H, W = gray_u8.shape
     K = labels.max() + 1
 
-    # Precompute per-superpixel stats
     means_vn = np.zeros(K, dtype=np.float32)
     for k in range(K):
         mask = (labels == k)
@@ -214,7 +168,6 @@ def graph_cut_segment(gray_u8, vn, labels, adj, fg_seed, bg_seed, lam_unary=5.0,
             sp_bg[k] = True
 
     if not _have_maxflow:
-        # Fallback: classify by threshold; honor hard seeds
         thr = np.percentile(means_vn, 85.0) if means_vn.size > 0 else 0.0
         lab = (means_vn >= thr)
         lab[sp_bg] = False
@@ -227,20 +180,18 @@ def graph_cut_segment(gray_u8, vn, labels, adj, fg_seed, bg_seed, lam_unary=5.0,
     g = maxflow.Graph[float](K, K * 6)
     nodeids = g.add_nodes(K)
 
-    # Unary costs: encourage FG for high vesselness
     eps = 1e-6
     for k in range(K):
         v = float(means_vn[k])
         v = max(0.0, min(1.0, v))
-        c_fg = lam_unary * (1.0 - v)  # high vn -> low cost to FG
-        c_bg = lam_unary * (v)        # low vn -> low cost to BG
+        c_fg = lam_unary * (1.0 - v)  
+        c_bg = lam_unary * (v)       
         if sp_fg[k]:
             c_fg = 0.0; c_bg = 1e6
         if sp_bg[k]:
             c_fg = 1e6; c_bg = 0.0
         g.add_tedge(nodeids[k], c_fg + eps, c_bg + eps)
 
-    # Pairwise costs: contrast-sensitive Potts over adjacency
     mean_gray = np.zeros(K, dtype=np.float32)
     for k in range(K):
         m = (labels == k)
@@ -256,14 +207,13 @@ def graph_cut_segment(gray_u8, vn, labels, adj, fg_seed, bg_seed, lam_unary=5.0,
             g.add_edge(nodeids[u], nodeids[v], w, w)
 
     g.maxflow()
-    lab = np.array([g.get_segment(nodeids[k]) == 0 for k in range(K)], dtype=bool)  # True=source/FG
+    lab = np.array([g.get_segment(nodeids[k]) == 0 for k in range(K)], dtype=bool)
 
     seg = lab[labels].astype(np.uint8) * 255
     seg[(vn <= 0) | (labels < 0)] = 0
     return seg
 
 
-# -------------------- Pipeline per-image --------------------
 def process_one(img_path: Path, fov_path: Path, out_dirs, cfg):
     gray_u8 = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
     fov_u8  = cv2.imread(str(fov_path), cv2.IMREAD_GRAYSCALE)
@@ -277,7 +227,6 @@ def process_one(img_path: Path, fov_path: Path, out_dirs, cfg):
     fg_seed, bg_seed = select_seeds(vn, fov_u8, labels, fg_top_pct=cfg["fg_top_pct"], bg_low_pct=cfg["bg_low_pct"], ring_px=cfg["ring_px"])
     seg = graph_cut_segment(gray_u8, vn, labels, adj, fg_seed, bg_seed, lam_unary=cfg["lam_unary"], beta_pair=cfg["beta_pair"])
 
-    # Save artifacts
     mask_path = out_dirs["masks"] / (img_path.stem + ".png")
     save_png(mask_path, seg)
 
@@ -305,7 +254,6 @@ def process_one(img_path: Path, fov_path: Path, out_dirs, cfg):
     }
 
 
-# -------------------- Main loop --------------------
 def run_split(split_root: Path, out_root: Path, cfg, csv_writer):
     img_dir = split_root / "images"
     fov_dir = split_root / "fov_masks"
@@ -345,7 +293,6 @@ def main():
     ap.add_argument("--out_root", type=str, default="outputs_seg", help="Where to write results")
     ap.add_argument("--splits", type=str, nargs="+", default=["train", "val", "test"])
 
-    # Vesselness/SLIC/Graph params
     ap.add_argument("--frangi_beta", type=float, default=0.5)
     ap.add_argument("--frangi_gamma", type=float, default=15.0)
     ap.add_argument("--n_segments", type=int, default=1200)
