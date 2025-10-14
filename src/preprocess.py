@@ -1,19 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-Preprocess FIVES fundus images:
-- Green-channel extraction
-- CLAHE (local contrast)
-- Optional resize
-- FOV mask from processed image (robust circle-from-background approach)
-- Train --> (train,val) split created ONLY under preprocessed/
-- Test stays intact (no split)
-
-Run from project root:
-  python src/preprocess.py --limit 5
-"""
-
 import argparse
 from pathlib import Path
 import random
@@ -26,18 +10,12 @@ from skimage.measure import label, regionprops
 import cv2, numpy as np
 
 def _circle_from_distance_transform(fg_mask_u8, r_bounds=(0.33, 0.52), shrink_px=4):
-    """
-    Given a coarse foreground mask (retina ≈ 1, background ≈ 0),
-    fit the maximal inscribed circle using a distance transform.
-    """
     m = (fg_mask_u8 > 0).astype(np.uint8)
     if m.sum() == 0:
-        return None  # nothing to do
+        return None
 
-    # Distance to the boundary *inside* the foreground
-    # Use L2 for true Euclidean distances
+
     dist = cv2.distanceTransform(m, distanceType=cv2.DIST_L2, maskSize=5)
-    # Center = argmax distance, Radius = max distance
     cy, cx = np.unravel_index(np.argmax(dist), dist.shape)
     r = float(dist[cy, cx])
 
@@ -46,7 +24,6 @@ def _circle_from_distance_transform(fg_mask_u8, r_bounds=(0.33, 0.52), shrink_px
     r_max = r_bounds[1] * min(h, w)
     r = int(np.clip(r, r_min, r_max))
 
-    # Rasterize the circle
     Y, X = np.ogrid[:h, :w]
     circ = ((X - cx)**2 + (Y - cy)**2 <= r*r).astype(np.uint8) * 255
 
@@ -57,7 +34,6 @@ def _circle_from_distance_transform(fg_mask_u8, r_bounds=(0.33, 0.52), shrink_px
     return circ
 
 
-# ---------- utils ----------
 def ensure_dir(p: Path):
     p.mkdir(parents=True, exist_ok=True)
 
@@ -66,7 +42,6 @@ def list_images(folder: Path, exts=(".png", ".jpg", ".jpeg", ".tif", ".tiff", ".
         return []
     return sorted([p for p in folder.iterdir() if p.suffix.lower() in exts])
 
-# ---------- preprocessing ----------
 def to_green_clahe(img_bgr, clip_limit=2.0, tile_grid_size=(8, 8)):
     g = img_bgr[:, :, 1]
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
@@ -82,7 +57,6 @@ def resize_if_needed(img, target):
         return cv2.resize(img, (W, H), interpolation=cv2.INTER_AREA)
     return img
 
-# ---- FOV helpers ----
 def _solid_circle_mask(h, w, cx, cy, r, shrink_px=4):
     Y, X = np.ogrid[:h, :w]
     m = (X - cx) ** 2 + (Y - cy) ** 2 <= r * r
@@ -93,14 +67,6 @@ def _solid_circle_mask(h, w, cx, cy, r, shrink_px=4):
     return mask
 
 def make_fov_mask(proc_img, shrink_px=4, bg_pct=8, min_bg_area_ratio=0.002):
-    """
-    Robust FOV from outer boundary (background-first strategy):
-      A) Find *background* (dark vignette) via low-intensity percentile
-      B) Use minEnclosingCircle of the *foreground* (not background) to get the fundus disk
-      C) If that fails or looks weird, Hough circle fallback
-    Returns uint8 mask {0,255}.
-    """
-    # ---- prep uint8 ----
     if proc_img.dtype != np.uint8:
         img = cv2.normalize(proc_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
     else:
@@ -109,25 +75,21 @@ def make_fov_mask(proc_img, shrink_px=4, bg_pct=8, min_bg_area_ratio=0.002):
     h, w = img.shape
     img_area = h * w
 
-    # ---------- A) estimate background via percentile ----------
-    p = np.percentile(img, bg_pct)           # e.g., 8th percentile
-    bg = (img <= p).astype(np.uint8) * 255   # background white for convenience
 
-    # Clean up background mask a bit (connect the ring)
+    p = np.percentile(img, bg_pct)           
+    bg = (img <= p).astype(np.uint8) * 255  
+
     bg = cv2.morphologyEx(bg, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8))
     bg = cv2.morphologyEx(bg, cv2.MORPH_OPEN,  np.ones((3,3), np.uint8))
 
-    # If almost no background found, switch to edge-based proxy
     bg_area_ratio = float(bg.sum() // 255) / img_area
     if bg_area_ratio < min_bg_area_ratio:
         blur = cv2.GaussianBlur(img, (0,0), 3)
         edges = cv2.Canny(blur, 40, 120)
         bg = (edges > 0).astype(np.uint8) * 255
 
-# ---------- B) min-enclosing circle of *foreground* ----------
     fg = cv2.bitwise_not(bg)
 
-    # Keep largest CC so we get one main blob
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats((fg > 0).astype(np.uint8), connectivity=8)
     if num_labels > 1:
         idx = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
@@ -135,7 +97,6 @@ def make_fov_mask(proc_img, shrink_px=4, bg_pct=8, min_bg_area_ratio=0.002):
     else:
         comp = (fg > 0).astype(np.uint8) * 255
 
-    # >>> NEW: fit maximal inscribed circle from distance transform
     dt_circle = _circle_from_distance_transform(
         comp, r_bounds=(0.33, 0.52), shrink_px=shrink_px
     )
@@ -143,7 +104,6 @@ def make_fov_mask(proc_img, shrink_px=4, bg_pct=8, min_bg_area_ratio=0.002):
         return dt_circle
 
 
-    # ---------- C) Hough fallback (on edges) ----------
     blur = cv2.GaussianBlur(img, (0,0), 3)
     edges = cv2.Canny(blur, 30, 100)
     r_min = int(0.35 * min(h, w))
@@ -155,7 +115,6 @@ def make_fov_mask(proc_img, shrink_px=4, bg_pct=8, min_bg_area_ratio=0.002):
         x, y, r = np.round(circles[0, 0]).astype(int)
         return _solid_circle_mask(h, w, x, y, r, shrink_px=shrink_px)
 
-    # ---------- Last-resort: centered circle heuristic ----------
     r = int(0.44 * min(h, w))
     return _solid_circle_mask(h, w, w//2, h//2, r, shrink_px=shrink_px)
 
@@ -163,7 +122,6 @@ def save_image(path: Path, img):
     ensure_dir(path.parent)
     cv2.imwrite(str(path), img)
 
-# ---------- split & processing ----------
 def split_train_val(train_imgs, val_frac, seed=42):
     rng = random.Random(seed)
     idx = list(range(len(train_imgs)))
@@ -186,27 +144,19 @@ def _solid_circle_mask(h, w, cx, cy, r, shrink_px=0):
     return mask
 
 def adjust_mask_area(mask_u8, target=0.70, tol=0.05, shrink_px=4, r_bounds=(0.33, 0.52)):
-    """
-    If mask area ratio is outside [target±tol], redraw a circle (same center)
-    with a scaled radius so area ratio ≈ target.
-    """
     h, w = mask_u8.shape
     cur_ratio = (mask_u8 > 0).sum() / float(h*w)
     if cur_ratio == 0.0 or abs(cur_ratio - target) <= tol:
-        return mask_u8  # empty or already fine
+        return mask_u8  
 
-    # center from moments (fallback to image center)
     m = cv2.moments((mask_u8 > 0).astype(np.uint8))
     cx = int(m["m10"]/m["m00"]) if m["m00"] != 0 else w//2
     cy = int(m["m01"]/m["m00"]) if m["m00"] != 0 else h//2
 
-    # current equivalent radius from area
     r_eq = math.sqrt(((mask_u8 > 0).sum()) / math.pi)
-    # scale to target area
     scale = math.sqrt(target / max(cur_ratio, 1e-6))
     r_new = r_eq * scale
 
-    # clamp to reasonable bounds (as fraction of min side)
     r_min = r_bounds[0] * min(h, w)
     r_max = r_bounds[1] * min(h, w)
     r_new = int(np.clip(r_new, r_min, r_max))
@@ -262,7 +212,6 @@ def main():
     tile_grid = tuple(args.tile_grid)
     target    = args.img_size if args.img_size is not None else None
 
-    # auto-create preprocessed root
     ensure_dir(out_root)
 
     train_src = data_root / "train" / "Original"
