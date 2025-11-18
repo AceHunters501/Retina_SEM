@@ -67,20 +67,21 @@ The project is implemented on the **FIVES dataset**.
 
 Given a superpixel graph \( G = (V, E) \), SLED learns a cluster assignment matrix:
 
-\[
+$$
 Z \in \mathbb{R}^{N \times K}
-\]
+$$
 
-The goal is to **minimize entropy** of the structural assignment:
+The goal is to **minimize the structural entropy**:
 
-\[
-\min_Z \mathcal{H}(G, Z)
-\]
+$$
+\min_Z \; \mathcal{H}(G, Z)
+$$
 
-Low structural entropy = consistent = **vessels**  
-High structural entropy = chaotic = **background**
+- Low structural entropy → **consistent structure → vessels**  
+- High structural entropy → **chaotic / noisy → background**
 
-Thus SLED naturally extracts thin vascular structures **without ground truth**.
+Thus SLED naturally extracts thin vascular structures **without needing ground truth labels**.
+
 
 ---
 
