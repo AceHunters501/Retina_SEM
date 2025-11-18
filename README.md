@@ -61,31 +61,11 @@ The project is implemented on the **FIVES dataset**.
      └────────────────────┘
 ```
 
----
-
-## 🧠 **3. Intuition Behind Structural Entropy Minimization**
-
-Given a superpixel graph \( G = (V, E) \), SLED learns a cluster assignment matrix:
-
-$$
-Z \in \mathbb{R}^{N \times K}
-$$
-
-The goal is to **minimize the structural entropy**:
-
-$$
-\min_Z \; \mathcal{H}(G, Z)
-$$
-
-- Low structural entropy → **consistent structure → vessels**  
-- High structural entropy → **chaotic / noisy → background**
-
-Thus SLED naturally extracts thin vascular structures **without needing ground truth labels**.
 
 
 ---
 
-## 📂 **4. Folder Structure**
+## 📂 **3. Folder Structure**
 
 ```
 Retina_SEM/
@@ -131,7 +111,7 @@ Retina_SEM/
 
 ---
 
-## 💻 **5. Environment Setup**
+## 💻 **4. Environment Setup**
 
 ### Create virtual environment
 ```bash
@@ -147,7 +127,7 @@ pip install -r requirements.txt
 
 ---
 
-# 🚀 **6. Pipeline Execution (All Steps)**
+# 🚀 **5. Pipeline Execution (All Steps)**
 
 ---
 
@@ -220,7 +200,7 @@ python src/run_multiscale_batch.py \
 
 ---
 
-# 📊 **7. Visualization with Jupyter Notebooks**
+# 📊 **6. Visualization with Jupyter Notebooks**
 
 Launch:
 
@@ -237,7 +217,7 @@ jupyter notebook
 
 ---
 
-# 🧩 **8. Multi-Scale Strategy**
+# 🧩 **7. Multi-Scale Strategy**
 
 To capture both large and fine vessels:
 
@@ -251,7 +231,7 @@ Fusion increases **clDice** and preserves vessel connectivity.
 
 ---
 
-# 🧪 **9. Metrics Used**
+# 🧪 **8. Metrics Used**
 
 | Metric | Purpose |
 |--------|---------|
@@ -267,7 +247,7 @@ Especially in **clDice**, proving better microvascular continuity.
 
 ---
 
-# 📝 **10. Contributors**
+# 📝 **9. Contributors**
 
 ### **Team AceHunters — IIT Bhilai**
 - **Om Raj Singh** — M25DS007  
@@ -277,7 +257,7 @@ Especially in **clDice**, proving better microvascular continuity.
 
 ---
 
-# 📚 **11. Citation**
+# 📚 **10. Citation**
 
 ```
 @inproceedings{sled2023,
@@ -290,12 +270,12 @@ Especially in **clDice**, proving better microvascular continuity.
 
 ---
 
-# 📜 **12. License**
+# 📜 **11. License**
 MIT License (add a LICENSE file if required)
 
 ---
 
-# 🎉 **13. Final Notes**
+# 🎉 **12. Final Notes**
 
 For any issues or suggestions:  
 Open an Issue or Contact Team AceHunters.
