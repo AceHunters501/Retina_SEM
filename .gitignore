@@ -1,3 +1,5 @@
 dataset/
-debug/
 .venv/
+superPixel_graph/
+superPixel_graph_sem/
+outputs/
