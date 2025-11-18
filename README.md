@@ -14,7 +14,7 @@
 ## 📌 **1. Project Overview**
 
 This repository implements an **unsupervised retinal vessel segmentation** pipeline using  
-**Structural Entropy Minimization (SLED)**, originally proposed for skin lesion segmentation  
+**Structural Entropy Minimization (SEM)**, originally proposed for skin lesion segmentation  
 and adapted here for **retinal fundus images**.
 
 Traditional vessel segmentation requires **pixel-level annotations**, which are costly.  
@@ -31,15 +31,15 @@ The project is implemented on the **FIVES dataset**.
 
 ## 🔥 **2. High-Level Architecture**
 
-```
+```                   
        ┌────────────────┐
-       │  Dataset (FIVES)│
+       │  Dataset(FIVES)│
        └───────┬────────┘
                │ Phase 0
                ▼
      ┌────────────────────┐
-     │ Preprocessing (CLAHE,
-     │ FOV Masking)        │
+     │ Preprocessing(CLAHE,
+     │ FOV Masking)       │
      └─────────┬──────────┘
                │ Phase 1
                ▼
