@@ -5,9 +5,6 @@ import numpy as np
 from tqdm import tqdm
 
 
-# ------------------------------------------------------------
-# SEM optimizer (stable version)
-# ------------------------------------------------------------
 
 def run_sem_optimization_stable(
     s,
@@ -62,9 +59,7 @@ def run_sem_optimization_stable(
     return np.clip(x, 0.0, 1.0)
 
 
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
+
 
 def build_edge_weights(features: np.ndarray, edges: np.ndarray) -> np.ndarray:
     """
@@ -104,9 +99,7 @@ def ensure_dir(p: Path):
     p.mkdir(parents=True, exist_ok=True)
 
 
-# ------------------------------------------------------------
-# Main per-image processing
-# ------------------------------------------------------------
+
 
 def process_one_graph(graph_path: Path, out_dir: Path, args, scale_name: str) -> dict:
     """
@@ -203,9 +196,7 @@ def run_for_split(split: str, graph_root: Path, out_root: Path, args):
     print(f"[{split}] Done. graphs={len(graph_files)} ok={n_ok} failed={len(graph_files) - n_ok}")
 
 
-# ------------------------------------------------------------
-# CLI
-# ------------------------------------------------------------
+
 
 def main():
     ap = argparse.ArgumentParser(
