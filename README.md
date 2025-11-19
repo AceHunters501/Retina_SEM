@@ -73,14 +73,16 @@ Retina_SEM/
 ├── dataset/                  
 │   ├── train/Original
 │   ├── train/Ground truth
-│   ├── val/
-│   └── test/
+│   ├── test/Original
+│   └── test/Ground truth
 │
 ├── preprocessed/
 │   ├── train/images
 │   ├── train/fov_masks
-│   ├── val/
-│   └── test/
+│   ├── val/images
+│   ├── val/fov_masks
+│   └── test/images
+│   └── test/fov_masks
 │
 ├── superPixel_graph/
 │   ├── scale_K1500_C10
