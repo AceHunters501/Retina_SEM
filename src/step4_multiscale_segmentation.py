@@ -1,34 +1,5 @@
 #!/usr/bin/env python
-"""
-Batch multi-scale fusion + thresholding for full dataset.
 
-Assumptions
------------
-- You have already run Step-2 (superpixel graphs) and Step-3 (SEM),
-  so for each scale you have a folder like:
-
-      SEM_ROOT/
-          scale_K1500_C10/
-              IMG_0001_sem.npz
-              IMG_0002_sem.npz
-              ...
-          scale_K2500_C8/
-              IMG_0001_sem.npz
-              ...
-
-- Each *_sem.npz file contains at least:
-    - vessel_prob (K,)
-    - labels      (H,W)
-    - image_path  (string)
-    - fov_path    (string)
-
-- This script will:
-    * fuse all scales for a given image (simple average),
-    * apply FOV mask (+ optional intensity suppression),
-    * threshold at thr=0.78,
-    * remove small connected components,
-    * save final 0/255 vessel mask as PNG in OUT_DIR.
-"""
 
 import argparse
 from pathlib import Path

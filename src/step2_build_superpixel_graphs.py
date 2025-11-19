@@ -30,14 +30,7 @@ def build_graph_from_superpixels(
     fg_frac_thresh: float = 0.05,
     bg_frac_thresh: float = 0.05,
 ):
-    """
-    Build node features, edge list, and node-level seeds from superpixels.
-
-    - features: (K, 4) = [mean_intensity, mean_vesselness, cy_norm, cx_norm]
-    - edges:    (2, E) undirected edge list with u < v
-    - node_seeds: (K,) in {-1, 0, 1}  (-1 unknown, 0 BG, 1 FG)
-    - centroids: (K, 2) in pixel coordinates [cy, cx]
-    """
+   
     H, W = gray_u8.shape
     K = int(labels.max()) + 1
 
@@ -79,9 +72,9 @@ def build_graph_from_superpixels(
             node_seeds[k] = 0        # background node
         else:
             node_seeds[k] = -1       # unknown
-        # -----------------------------------------------
+        
 
-    # ----- adjacency (reuse your helper) -----
+  
     adj = spx.adjacency_from_labels(labels)
 
     edges_u, edges_v = [], []

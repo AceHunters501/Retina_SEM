@@ -198,31 +198,7 @@ def select_seeds(
     bg_low_pct: float = 0.15,
     ring_px: int = 8,
 ):
-    """
-    Select pixel-level foreground/background seeds from vesselness.
-
-    Parameters
-    ----------
-    vn : (H, W) float32
-        Vesselness map.
-    fov_u8 : (H, W) uint8
-        FOV mask (non-zero inside FOV).
-    labels : (H, W) int
-        Superpixel labels (unused directly, but kept for compatibility).
-    fg_top_pct : float
-        Fraction of highest vesselness pixels (inside FOV) to mark as FG seeds.
-    bg_low_pct : float
-        Fraction of lowest vesselness pixels (inside FOV) to mark as BG seeds.
-    ring_px : int
-        Thickness (in pixels) of additional BG ring at the FOV border.
-
-    Returns
-    -------
-    fg_seed : (H, W) uint8
-        Foreground seed mask (255 at seed pixels, 0 elsewhere).
-    bg_seed : (H, W) uint8
-        Background seed mask (255 at seed pixels, 0 elsewhere).
-    """
+   
     in_fov = fov_u8 > 0
     vn_f = vn[in_fov]
 
