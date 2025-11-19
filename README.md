@@ -259,28 +259,4 @@ Especially in **clDice**, proving better microvascular continuity.
 
 ---
 
-# 📚 **10. Citation**
-
-```
-@inproceedings{sled2023,
-  title={Unsupervised Skin Lesion Segmentation via Structural Entropy Minimization on Multi-Scale Superpixel Graphs},
-  author={...},
-  booktitle={ICDM},
-  year={2023}
-}
-```
-
----
-
-# 📜 **11. License**
-MIT License (add a LICENSE file if required)
-
----
-
-# 🎉 **12. Final Notes**
-
-For any issues or suggestions:  
-Open an Issue or Contact Team AceHunters.
-
----
 
